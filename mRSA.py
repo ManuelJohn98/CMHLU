@@ -10,6 +10,26 @@ from functools import partial
 # alpha = 1.25
 lamb = 10
 
+class prRSA:
+    def __init__(self, lamb=lamb):
+        self.lamb = lamb
+        self.utterances = [
+            "Might I ask you",
+            "Would you mind",
+            ""
+        ]
+        pass
+
+
+"""
+states: interpersonal relationship
+social utility: expected interpersonal relationship given utterance, (power dynamic?), subject to level of benefit
+-> concatenation of level of benefit? Up to a certain length -> cost?
+L1
+"""
+
+
+'''
 states = range(1,6)
 
 utterances = ["terrible", "bad", "okay", "good", "amazing"]
@@ -48,7 +68,7 @@ class mRSA:
     def L0(self, utterance: str) -> int:
         pass
 
-
+'''
 
 
 if __name__=='__main__':
