@@ -14,6 +14,12 @@ speaker_optimality = 1
 
 priors = [1/3, 1/3, 1/3]
 
+def adjusted_modesty(x: float) -> float:
+    """
+    A function that linearly maps the modesty value between 0 and 1 to a value between -1 and 1.
+    """
+    return 2 * (x - 0.5)
+
 class mRSA:
     """
     An implementation of the RSA model extending it to account for modesty.
@@ -69,8 +75,8 @@ class mRSA:
         """
         L0 = self.L0()
         epistemic_utility = np.log(L0.T)
-        modest_utility = np.array([list(sum(self.alpha * state * state_probability for state, state_probability in enumerate(L0[i], start=1)) for i, _ in enumerate(L0))] * 3)
-        utility = honesty * epistemic_utility - modesty * modest_utility
+        modest_utility = np.array([list(- sum(self.alpha * state * state_probability for state, state_probability in enumerate(L0[i], start=1)) for i, _ in enumerate(L0))] * 3)
+        utility = honesty * epistemic_utility + adjusted_modesty(modesty) * modest_utility
         unnorm = np.exp(self.speaker_optimality*utility)
         norm = self.normalize(unnorm)
         if level_of_expertise is None:
@@ -79,5 +85,5 @@ class mRSA:
 
 
 if __name__ == "__main__":
-    model = mRSA(speaker_optimality=10, alpha=1.25)
-    print("S1 beginner", model.S1("beginner", honesty=0.3, modesty=0.1))
+    model = mRSA(alpha=1.3)
+    print("S1 beginner", model.S1("beginner", honesty=0.3, modesty=0.3))
