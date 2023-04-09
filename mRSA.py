@@ -55,7 +55,7 @@ class mRSA:
 
         return norm
     
-    def L0(self, utterance: str=None) -> np.ndarray:
+    def L0(self, utterance: str|None=None) -> np.ndarray:
         """
         Implementation of the literal listener.
         """
@@ -69,7 +69,7 @@ class mRSA:
             return norm
         return norm[self.utterances.index(utterance)]
         
-    def S1(self, level_of_expertise: str=None, honesty: int=0.6, modesty : int=0.8) -> np.ndarray:
+    def S1(self, level_of_expertise: str|None=None, honesty: float=0.6, modesty : float=0.8) -> np.ndarray:
         """
         Implementation of the pragmatic speaker.
         """
