@@ -4,72 +4,80 @@ All rights reserved.
 This source code is licensed under the BSD-style license found in the
 LICENSE file in the root directory of this source tree. """
 import numpy as np
-from functools import partial
+import matplotlib.pyplot as plt
+import random
+#from typing import List
 
-# hyper parameters
-# alpha = 1.25
-lamb = 10
+# Hyperparameters
+alpha = 1
+speaker_optimality = 1
 
-class prRSA:
-    def __init__(self, lamb=lamb):
-        self.lamb = lamb
-        self.utterances = [
-            "Might I ask you",
-            "Would you mind",
-            ""
-        ]
-        pass
-
-
-"""
-states: interpersonal relationship
-social utility: expected interpersonal relationship given utterance, (power dynamic?), subject to level of benefit
--> concatenation of level of benefit? Up to a certain length -> cost?
-L1
-"""
-
-
-'''
-states = range(1,6)
-
-utterances = ["terrible", "bad", "okay", "good", "amazing"]
-index = partial(utterances.index)
-
-literal_semantics = np.array(
-            [[.95,.85,.02,.02,.02],
-            [.85,.95,.02,.02,.02],
-            [0.02,0.25,0.95,.65,.35],
-            [.02,.05,.55,.95,.93],
-            [.02,.02,.02,.65,0.95]]
-        )
+priors = [1/3, 1/3, 1/3]
 
 class mRSA:
-    def __init__(self, lamb=10):
-        self.lamb = lamb
+    """
+    An implementation of the RSA model extending it to account for modesty.
+    """
+    def __init__(self, alpha: float=alpha, speaker_optimality: float=speaker_optimality, priors: list[float]=priors) -> None:
+        self.alpha = alpha
+        self.speaker_optimality = speaker_optimality
+        self.priors = priors
+        self.epsilon = 0.0001
+        self.utterances = ["terrible", "bad", "good", "amazing"]
+        self.levels_of_expertise = ["beginner", "intermediate", "expert"]
+        self.literal_semantics = np.array([
+            [0.9, 0.8, 0.4, 0.1], 
+            [0.1, 0.4, 0.8, 0.6], 
+            [0.1, 0.2, 0.5, 0.7]
+        ])
 
-
-    def meaning(self, utterance: str, state: int) -> bool:
-        return bool(np.random.binomial(1, literal_semantics[index(utterance)][state - 1])) if utterance in utterances else True
-
-
-    def normalize(self,arr):
-	    return arr / arr.sum(axis=1)[:, np.newaxis]
-
-
-    def P_m_given_o(self):
-        unnorm = literal_semantics
+    def normalize(self, arr: np.ndarray) -> np.ndarray:
+        """
+        Normalize a numpy array to sum to 1.
+        """
+        return arr / arr.sum(axis=1)[:, np.newaxis]
+    
+    def P_u_given_s(self) -> np.ndarray:
+        """
+        Compute the probability of utterances given speaker's level of expertise.
+        """
+        # literal truth values
+        unnorm = self.literal_semantics
 
         #normalize to obtain a probability distribution
         norm = self.normalize(unnorm)
 
         return norm
+    
+    def L0(self, utterance: str=None) -> np.ndarray:
+        """
+        Implementation of the literal listener.
+        """
+        P_u_given_s = self.P_u_given_s()
+        priors = np.array([self.priors] * 4).T
+        unnorm = P_u_given_s * priors
+        unnorm = unnorm.T
+        unnorm[unnorm == 0] = self.epsilon
+        norm = self.normalize(unnorm)
+        if utterance is None:
+            return norm
+        return norm[self.utterances.index(utterance)]
+        
+    def S1(self, level_of_expertise: str=None, honesty: int=0.6, modesty : int=0.8) -> np.ndarray:
+        """
+        Implementation of the pragmatic speaker.
+        """
+        L0 = self.L0()
+        epistemic_utility = np.log(L0.T)
+        modest_utility = np.array([list(sum(self.alpha * state * state_probability for state, state_probability in enumerate(L0[i], start=1)) for i, _ in enumerate(L0))] * 3)
+        utility = honesty * epistemic_utility - modesty * modest_utility
+        unnorm = np.exp(self.speaker_optimality*utility)
+        norm = self.normalize(unnorm)
+        if level_of_expertise is None:
+            return norm
+        return norm[self.levels_of_expertise.index(level_of_expertise)]
 
 
-    def L0(self, utterance: str) -> int:
-        pass
-
-'''
-
-
-if __name__=='__main__':
-    pass
+if __name__ == "__main__":
+    model = mRSA(speaker_optimality=10, alpha=1.25)
+    print("S1 beginner", model.S1("beginner", honesty=0.3, modesty=0.1))
