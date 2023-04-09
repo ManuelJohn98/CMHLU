@@ -37,6 +37,7 @@ class mRSA:
             [0.1,       0.4, 0.8, 0.6], # intermediate
             [0.1,       0.2, 0.5, 0.7]  # expert
         ])
+        self.weight_bins = np.linspace(0, 1, 11, endpoint=False)
 
     def normalize(self, arr: np.ndarray) -> np.ndarray:
         """
@@ -102,14 +103,50 @@ class mRSA:
         
         # general utility with adjusted modesty weight
         utility = honesty * epistemic_utility + adjust_modesty(modesty) * modest_utility
-        unnorm = np.exp(self.speaker_optimality*utility)
-        norm = self.normalize(unnorm)
+        unnormalized_output = np.exp(self.speaker_optimality*utility)
+        normalized_output = self.normalize(unnormalized_output)
 
         # if no level of expertise is specified, return the entire distribution
         if level_of_expertise is None:
-            return norm
+            return normalized_output
         # otherwise, return the distribution for the specified level of expertise
-        return norm[self.levels_of_expertise.index(level_of_expertise)]
+        return normalized_output[self.levels_of_expertise.index(level_of_expertise)]
+    
+    def L1(self,  utterance: str, true_state:str|None=None, known_goal_weights: tuple[float, float]|None=None) -> np.ndarray:
+        """
+        Implementation of the pragmatic listener: L1(o|m). Can be given an utterance to return the distribution over states for that utterance.
+        >>> mRSA().L1("terrible")
+        >>> TODO: add expected output
+        If utterance is not specified, returns the entire distribution over states.
+        """
+        if true_state is None and known_goal_weights is None:
+            raise ValueError("Either true_state or known_goal_weights must be specified.")
+        if true_state is not None and known_goal_weights is not None:
+            # TODO: calculate probability of true state given known goal weights?
+            pass
+        if true_state is not None:
+            pass
+        if known_goal_weights is not None:
+            return self._L1_infer_true_state(utterance, known_goal_weights)
+
+    def _L1_infer_true_state(self, utterance: str, known_goal_weights: tuple[float, float]) -> np.ndarray:
+        """
+        Helper function for L1. Computes the distribution over true states given an utterance and known goal weights.
+        """
+        honesty, modesty = known_goal_weights
+        S1 = self.S1(honesty=honesty, modesty=modesty)
+        priors = np.array([self.priors] * 4).T
+        unnormalized_ouput = S1 * priors
+        normalized_ouput = self.normalize(unnormalized_ouput)
+        return normalized_ouput[self.utterances.index(utterance)]
+    
+    def _L1_infer_known_goal_weights(self, utterance: str, true_state: str) -> np.ndarray:
+        """
+        Helper function for L1. Computes the distribution over known goal weights given an utterance and true state.
+        """
+        for honesty in self.weight_bins:
+            for modesty in self.weight_bins:
+                S1 = self
 
 
 if __name__ == "__main__":
