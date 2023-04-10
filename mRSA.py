@@ -19,6 +19,16 @@ def adjust_modesty(x: float) -> float:
     """
     return 2 * (x - 0.5)
 
+def get_honesty_from_modesty(x: float) -> float:
+    """
+    A function that maps the modesty value between 0 and 1 to a value between 0 and 1.
+    """
+    if x < 0.5:
+        return 2 * (x - 0.25) + 0.5
+    elif x > 0.5:
+        return -2 * (x - 0.75) + 0.5
+    return 1
+
 class mRSA:
     """
     An implementation of the RSA model extending it to account for modesty.
@@ -36,7 +46,7 @@ class mRSA:
             [0.1,       0.4, 0.8, 0.6], # intermediate
             [0.1,       0.2, 0.5, 0.7]  # expert
         ])
-        self.weight_bins = np.linspace(0, 1, 50, endpoint=False)
+        self.weight_bins = np.linspace(0.00001, 1, 50, endpoint=True)
 
     def normalize(self, arr: np.ndarray) -> np.ndarray:
         """
@@ -83,7 +93,7 @@ class mRSA:
         # otherwise, return the distribution for the specified utterance
         return normalized_output[self.utterances.index(utterance)]
         
-    def S1(self, level_of_expertise: str|None=None, honesty: float=0.6, modesty : float=0.8) -> np.ndarray:
+    def S1(self, level_of_expertise: str|None=None, modesty : float=0.8) -> np.ndarray:
         # TODO: !!!honesty is determined by modesty with a reversed bell shaped curve -> curve max = max honesty!!!
         """
         Implementation of the pragmatic speaker: S1(m|o). Can be given a level of expertise to return the distribution over messages for that level of expertise.
@@ -95,6 +105,7 @@ class mRSA:
         All arguments are optional. If no arguments are specified, returns the entire distribution over messages with default values for honesty and modesty:
         >>> mRSA().S1(honesty=0.6, modesty=0.8)
         """
+        honesty = get_honesty_from_modesty(modesty)
         L0 = self.L0()
         epistemic_utility = np.log(L0.T)
 
@@ -112,29 +123,28 @@ class mRSA:
         # otherwise, return the distribution for the specified level of expertise
         return normalized_output[self.levels_of_expertise.index(level_of_expertise)]
     
-    def L1(self,  utterance: str, true_state:str|None=None, known_goal_weights: tuple[float, float]|None=None) -> np.ndarray | tuple[float, float, float] | None:
+    def L1(self,  utterance: str, true_state:str|None=None, known_modesty: float|None=None) -> np.ndarray | tuple[float, float, float] | None:
         """
         Implementation of the pragmatic listener: L1(o|m). Can be given an utterance to return the distribution over states for that utterance.
         >>> mRSA().L1("terrible")
         >>> TODO: add expected output
         If utterance is not specified, returns the entire distribution over states.
         """
-        if true_state is None and known_goal_weights is None:
+        if true_state is None and known_modesty is None:
             raise ValueError("Either true_state or known_goal_weights must be specified.")
-        if true_state is not None and known_goal_weights is not None:
+        if true_state is not None and known_modesty is not None:
             # TODO: calculate probability of true state given known goal weights?
             raise NotImplementedError
         if true_state is not None:
             return self._L1_infer_goal_weights(utterance=utterance, true_state=true_state)
-        if known_goal_weights is not None:
-            return self._L1_infer_state(utterance, known_goal_weights)
+        if known_modesty is not None:
+            return self._L1_infer_state(utterance, known_modesty)
 
-    def _L1_infer_state(self, utterance: str, known_goal_weights: tuple[float, float]) -> np.ndarray:
+    def _L1_infer_state(self, utterance: str, known_modesty: float) -> np.ndarray:
         """
         Helper function for L1. Computes the distribution over true states given an utterance and known goal weights.
         """
-        honesty, modesty = known_goal_weights
-        S1 = self.S1(honesty=honesty, modesty=modesty)
+        S1 = self.S1(modesty=known_modesty)
         priors = np.array([self.priors] * 4).T
         unnormalized_ouput = S1 * priors
         unnormalized_ouput = unnormalized_ouput.T
@@ -147,20 +157,17 @@ class mRSA:
         """
         priors = np.array([self.priors] * 4).T
         max_likelihood = (-1, -1, float('-inf'))
-        for honesty in self.weight_bins:
-            for modesty in self.weight_bins:
-                '''if honesty + modesty:
-                    continue'''
-                S1 = self.S1(honesty=honesty, modesty=modesty)
-                unnormalized_output = S1 * priors
-                unnormalized_output = unnormalized_output.T
-                normalized_output = self.normalize(unnormalized_output)
-                if np.argmax(normalized_output[self.utterances.index(utterance)]) != self.levels_of_expertise.index(true_state):
-                    continue
-                max_likelihood = max(max_likelihood, (honesty, modesty, normalized_output[self.utterances.index(utterance)][self.levels_of_expertise.index(true_state)]), key=(lambda x: x[2]))
+        for modesty in self.weight_bins:
+            S1 = self.S1(modesty=modesty)
+            unnormalized_output = S1 * priors
+            unnormalized_output = unnormalized_output.T
+            normalized_output = self.normalize(unnormalized_output)
+            if np.argmax(normalized_output[self.utterances.index(utterance)]) != self.levels_of_expertise.index(true_state):
+                continue
+            max_likelihood = max(max_likelihood, (get_honesty_from_modesty(modesty), modesty, normalized_output[self.utterances.index(utterance)][self.levels_of_expertise.index(true_state)]), key=(lambda x: x[2]))
         return max_likelihood
 
 
 if __name__ == "__main__":
     model = mRSA(alpha=1.25, speaker_optimality=10)
-    print(model.S1(honesty=0.6, modesty=0.9))
+    print(model.L1("amazing", known_modesty=0.9999))
