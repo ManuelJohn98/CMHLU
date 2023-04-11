@@ -99,11 +99,11 @@ class mRSA:
         Implementation of the pragmatic speaker: S1(m|o). Can be given a level of expertise to return the distribution over messages for that level of expertise.
         >>> mRSA().S1("beginner")
         >>> TODO: add expected output
-        Can also be given a either a value for honesty or modesty or both.
-        >>> mRSA().S1(honesty=0.6, modesty=0.8)
-        >>> TODO: add expected output
-        All arguments are optional. If no arguments are specified, returns the entire distribution over messages with default values for honesty and modesty:
-        >>> mRSA().S1(honesty=0.6, modesty=0.8)
+        Can also be a value for modesty between 0 and 1. This determines how modest the speaker is. From  0.5 to 1, the speaker is increasingly modest to the
+        point where she will lie and rate her product as lower as would be expected from her level of expertise. From 0.5 to 0, the speaker will start to brag
+        about her product to the point where she will rate her product as higher than would be expected from her level of expertise.
+        Modesty also determines the level of honesty of the speaker. modesty=0.5 is the most honest, while modesty=0 and modesty=1 are the least honest. 
+        The default value for modesty is 0.8.
         """
         honesty = get_honesty_from_modesty(modesty)
         L0 = self.L0()
@@ -125,18 +125,23 @@ class mRSA:
     
     def L1(self,  utterance: str, true_state:str|None=None, known_modesty: float|None=None) -> np.ndarray | tuple[float, float, float] | None:
         """
-        Implementation of the pragmatic listener: L1(o|m). Can be given an utterance to return the distribution over states for that utterance.
+        Implementation of the pragmatic listener: L1(o|m). Needs to be given an utterance to either infer the level of expertise given the modesty value
+        or to infer the modesty value given the level of expertise.
         >>> mRSA().L1("terrible")
         >>> TODO: add expected output
-        If utterance is not specified, returns the entire distribution over states.
+        If both true_state and known_modesty are specified, returns the probability of the true state given the known modesty.
         """
         if true_state is None and known_modesty is None:
             raise ValueError("Either true_state or known_goal_weights must be specified.")
         if true_state is not None and known_modesty is not None:
             # TODO: calculate probability of true state given known goal weights?
             raise NotImplementedError
+        
+        # infer the modesty value given the level of expertise
         if true_state is not None:
             return self._L1_infer_goal_weights(utterance=utterance, true_state=true_state)
+        
+        # infer the level of expertise given the modesty value
         if known_modesty is not None:
             return self._L1_infer_state(utterance, known_modesty)
 
@@ -145,6 +150,8 @@ class mRSA:
         Helper function for L1. Computes the distribution over true states given an utterance and known goal weights.
         """
         S1 = self.S1(modesty=known_modesty)
+
+        # tranforming priors to correct dimensions for element-wise multiplication
         priors = np.array([self.priors] * 4).T
         unnormalized_ouput = S1 * priors
         unnormalized_ouput = unnormalized_ouput.T
@@ -155,13 +162,20 @@ class mRSA:
         """
         Helper function for L1. Computes the distribution over known goal weights given an utterance and true state.
         """
+
+        # tranforming priors to correct dimensions for element-wise multiplication
         priors = np.array([self.priors] * 4).T
+        
+        # collect the maximum likelihood along with corresponding modesty and honesty values
         max_likelihood = (-1, -1, float('-inf'))
+        # grid search with implicit uniform prior over modesty values
         for modesty in self.weight_bins:
             S1 = self.S1(modesty=modesty)
             unnormalized_output = S1 * priors
             unnormalized_output = unnormalized_output.T
             normalized_output = self.normalize(unnormalized_output)
+            
+            # given utterance should have the highest probability for the true state
             if np.argmax(normalized_output[self.utterances.index(utterance)]) != self.levels_of_expertise.index(true_state):
                 continue
             max_likelihood = max(max_likelihood, (get_honesty_from_modesty(modesty), modesty, normalized_output[self.utterances.index(utterance)][self.levels_of_expertise.index(true_state)]), key=(lambda x: x[2]))
