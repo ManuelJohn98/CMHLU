@@ -30,9 +30,11 @@ def main():
                     case "L0":
                         print("-----------L0-----------")
                         print("You can specify an utterance {} or just press [ENTER] to get the whole distribution.".format(model.utterances))
-                        utterance = input("Utterance: ")
+                        utterance = input("Utterance (default is 'terrible'): ")
                         if utterance == "":
                             print(model.L0())
+                        elif utterance not in model.utterances:
+                            print(model.L0("terrible"))
                         else:
                             print(model.L0(utterance))
                     case "S1":
@@ -42,21 +44,26 @@ def main():
                         except ValueError:
                             modesty = 0.8
                         print("You can specify a level of expertise {} or just press [ENTER] to get the whole distribution.".format(model.levels_of_expertise))
-                        utterance = input("Utterance: ")
+                        utterance = input("level of expertise (default is 'beginner'): ")
                         if utterance == "":
                             print(model.S1(modesty=modesty))
+                        elif utterance not in model.levels_of_expertise:
+                            print(model.S1("beginner", modesty=modesty))
                         else:
                             print(model.S1(utterance, modesty=modesty))
                     case "L1":
                         print("-----------L1-----------")
                         print("You can specify the true level of expertise or the true modesty or both or just press [ENTER] to infer both.")
                         true_level_of_expertise = input("True level of expertise: ")
-                        if true_level_of_expertise == "":
+                        if true_level_of_expertise not in model.levels_of_expertise:
                             true_level_of_expertise = None
-                        true_modesity = input("True modesty: ")
-                        if true_modesity == "":
+                        try:
+                            true_modesity = float(input("True modesty: "))
+                        except ValueError:
                             true_modesity = None
-                        utterance = input("You need to specify an utterance from {}: ".format(model.utterances))
+                        utterance = input("You need to specify an utterance from {} (default is 'terrible'): ".format(model.utterances))
+                        if utterance not in model.utterances:
+                            utterance = "terrible"
                         print(model.L1(utterance, true_level_of_expertise, true_modesity))
                     case _:
                         print("Invalid input.")
@@ -72,3 +79,6 @@ def main():
         print("")
         print("Exiting...")
         exit()
+
+if __name__ == "__main__":
+    main()

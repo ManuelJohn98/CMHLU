@@ -17,6 +17,14 @@ priors = [1/3, 1/3, 1/3]
 class mRSA:
     """
     An implementation of the RSA model extending it to account for modesty.
+
+    :param alpha: The parameter that determines the intensity of the modesty.
+    :param speaker_optimality: The parameter that determines the optimality/rationality of the speaker.
+    :param priors: The prior probabilities of the states.
+    :param plotting: Whether to plot the distributions at each level of the model.
+    
+    This implementation models the three basic levels of the RSA model: the literal listener, the pragmatic speaker, and the pragmatic listener and for each level you can choose
+    whether to model the whole distribution or the distribution for specific parameters (such as utterance, level of expertise, etc.)
     """
     def __init__(self, alpha: float=alpha, speaker_optimality: float=speaker_optimality, priors: list[float]=priors, plotting: bool=False) -> None:
         self.alpha = alpha
@@ -25,6 +33,8 @@ class mRSA:
         self.epsilon = 0.0001
         self.utterances = ["terrible", "bad", "good", "amazing"]
         self.levels_of_expertise = ["beginner", "intermediate", "expert"] # also referred to as states
+
+        # this would have to be determined from an experiment
         self.literal_semantics = np.array([
             #terrible, bad, good, amazing
             [0.9,       0.3, 0.2, 0.1], # beginner
@@ -38,7 +48,8 @@ class mRSA:
 
     def P_u_given_s(self) -> np.ndarray:
         """
-        Compute the probability of utterances given speaker's level of expertise.
+        Compute the probability of utterances given the speaker's level of expertise.
+        :return: A 3x4 matrix where each row represents the probability of utterances given the speaker's level of expertise.
         """
         # literal truth values
         unnorm = self.literal_semantics
@@ -54,10 +65,20 @@ class mRSA:
     def L0(self, utterance: str|None=None) -> np.ndarray:
         """
         Implementation of the literal listener: L(s|u). Can be given an utterance to return the distribution over states for that utterance.
-        >>> mRSA().L0("terrible")
-        >>> # TODO: add expected output
+        :param utterance: The utterance to return the distribution over states for.
+        :return: A 4x3 matrix where each row represents the distribution over states for the specified utterance or a 1x3 matrix if an utterance is specified.
+
+        >>> model = mRSA(alpha=1.25, speaker_optimality=10)
+        >>> model.L0("bad")
+        [0.36774194 0.38709677 0.24516129]
 
         If utterance is not specified, returns the entire distribution over states.
+        >>> model.L0()
+        [[0.83414634 0.07317073 0.09268293]
+         [0.36774194 0.38709677 0.24516129]
+         [0.15019763 0.4743083  0.37549407]
+         [0.0785124  0.37190083 0.54958678]]
+
         """
 
         # compute P(u|s) -- literal meaning
@@ -86,8 +107,13 @@ class mRSA:
     def S1(self, level_of_expertise: str|None=None, modesty: float=0.8) -> np.ndarray:
         """
         Implementation of the pragmatic speaker: S1(m|o). Can be given a level of expertise to return the distribution over messages for that level of expertise.
-        >>> mRSA().S1("beginner")
-        >>> TODO: add expected output
+        :param level_of_expertise: The level of expertise to return the distribution over messages for.
+        :param modesty: The level of modesty of the speaker. Can be a value between 0 and 1 or a value for modesty between 0 and 1.
+        :return: A 4x3 matrix where each row represents the distribution over messages for the specified level of expertise or a 1x3 matrix if a level of expertise is specified.
+
+        >>> model = mRSA(alpha=1.25, speaker_optimality=10)
+        >>> model.S1("intermediate")
+        [0.10120833 0.76438927 0.12681512 0.00758729]
 
         Can also be a value for modesty between 0 and 1. This determines how modest the speaker is. From  0.5 to 1, the speaker is increasingly modest to the
         point where she will lie and rate her product as lower as would be expected from her level of expertise. From 0.5 to 0, the speaker will start to brag
@@ -119,19 +145,24 @@ class mRSA:
         return normalized_output[self.levels_of_expertise.index(level_of_expertise)]
     
 
+
     @plotter
     def L1(self,  utterance: str, true_state:str|None=None, known_modesty: float|None=None) -> np.ndarray | tuple[float, float, float] | float | None:
         """
         Implementation of the pragmatic listener: L1(o|m). Needs to be given an utterance to either infer the level of expertise given the modesty value
-        or to infer the modesty value given the level of expertise.
-        >>> mRSA().L1("terrible")
-        >>> TODO: add expected output
+        or to infer the modesty value given the level of expertise. Both can be left unspecified to infer both the level of expertise and the modesty value.
+        
+        :param utterance: The utterance to infer the level of expertise or the modesty value for.
+        :param true_state: The true state of the speaker. Can be "good", "intermediate", or "bad".
+        :param known_modesty: The level of modesty of the speaker. Can be a value between 0 and 1.
 
         If both true_state and known_modesty are specified, returns the probability of the true state given the known modesty.
         """
+        # infer the probability of the true state given the known modesty
         if true_state is None and known_modesty is None:
             return self._L1_infer_state_and_modesty(utterance=utterance)
 
+        # infer the level of expertise and the modesty value
         if true_state is not None and known_modesty is not None:
             return self._L1_prob(utterance=utterance, true_state=true_state, known_modesty=known_modesty)
         
@@ -146,8 +177,14 @@ class mRSA:
     def _L1_prob(self, utterance: str, true_state: str, known_modesty: float) -> float:
         """
         Helper function for L1. Computes the probability of the true state given an utterance and known goal weights.
+
+        :param utterance: The utterance to infer the probability of the level of expertise for given the modesty value.
+        :param true_state: The true state of the speaker. Can be "good", "intermediate", or "bad".
+        :param known_modesty: The level of modesty of the speaker. Can be a value between 0 and 1.
+        :return: The probability of the true state given the known modesty.
         """
         if self.plotting:
+            print("Nothing to plot, as it's only one probability value.")
             self.plotting = False
             S1 = self.S1(modesty=known_modesty)
             self.plotting = True
@@ -159,6 +196,10 @@ class mRSA:
     def _L1_infer_state(self, utterance: str, known_modesty: float) -> np.ndarray:
         """
         Helper function for L1. Computes the distribution over true states given an utterance and known goal weights.
+
+        :param utterance: The utterance to infer the level of expertise for given the modesty value.
+        :param known_modesty: The level of modesty of the speaker. Can be a value between 0 and 1.
+        :return: A 1x3 matrix where each row represents the distribution over states for the specified utterance.
         """
         if self.plotting:
             self.plotting = get_plot_everything()
@@ -179,6 +220,10 @@ class mRSA:
     def _L1_infer_modesty(self, utterance: str, true_state: str) -> np.ndarray:
         """
         Helper function for L1. Computes the distribution over known goal weights given an utterance and true state.
+
+        :param utterance: The utterance to infer the modesty value for given the level of expertise.
+        :param true_state: The true state of the speaker. Can be "good", "intermediate", or "bad".
+        :return: A 1x10 matrix where each row represents the distribution over modesty weights for the specified utterance.
         """
         self.plotting = False
         # tranforming priors to correct dimensions for element-wise multiplication
@@ -203,6 +248,9 @@ class mRSA:
     def _L1_infer_state_and_modesty(self, utterance: str) -> np.ndarray:
         """
         Helper function for L1. Computes the distribution over true states and known goal weights given an utterance.
+
+        :param utterance: The utterance to infer the level of expertise and the modesty value for.
+        :return: A 3x10 matrix where each row represents a level of expertise and the columns represent specific modesty values.
         """
 
         likelihood_grid = np.empty((len(self.levels_of_expertise), len(self.weight_bins)))
