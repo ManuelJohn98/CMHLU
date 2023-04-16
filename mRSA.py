@@ -85,7 +85,7 @@ class mRSA:
         P_u_given_s = self.P_u_given_s()
 
         # P(s) -- reshape to correct dimensions for element-wise multiplication
-        priors = np.array([self.priors] * 4).T
+        priors = np.array([self.priors] * len(self.utterances)).T
         unnormalized_output = P_u_given_s * priors
 
         # transform to obtain a distribution over speakers
@@ -131,7 +131,7 @@ class mRSA:
         epistemic_utility = np.log(L0.T)
 
         # modest utility: negative expected state of literal listener
-        modest_utility = np.array([list(- sum(self.alpha * state * state_probability for state, state_probability in enumerate(L0[i], start=1)) for i, _ in enumerate(L0))] * 3)
+        modest_utility = np.array([list(- sum(self.alpha * state * state_probability for state, state_probability in enumerate(L0[i], start=1)) for i, _ in enumerate(L0))] * len(self.levels_of_expertise))
         
         # general utility with adjusted modesty weight
         utility = honesty * epistemic_utility + adjust_modesty(modesty) * modest_utility
@@ -209,7 +209,7 @@ class mRSA:
             S1 = self.S1(modesty=known_modesty)
 
         # tranforming priors to correct dimensions for element-wise multiplication
-        priors = np.array([self.priors] * 4).T
+        priors = np.array([self.priors] * len(self.utterances)).T
         unnormalized_ouput = S1 * priors
         unnormalized_ouput = unnormalized_ouput.T
         normalized_ouput = normalize(unnormalized_ouput)
@@ -227,7 +227,7 @@ class mRSA:
         """
         self.plotting = False
         # tranforming priors to correct dimensions for element-wise multiplication
-        priors = np.array([self.priors] * 4).T
+        priors = np.array([self.priors] * len(self.utterances)).T
 
         likelihood_grid = np.empty(len(self.weight_bins))
 
