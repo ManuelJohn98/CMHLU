@@ -108,7 +108,7 @@ class mRSA:
         """
         Implementation of the pragmatic speaker: S1(m|o). Can be given a level of expertise to return the distribution over messages for that level of expertise.
         :param level_of_expertise: The level of expertise to return the distribution over messages for.
-        :param modesty: The level of modesty of the speaker. Can be a value between 0 and 1 or a value for modesty between 0 and 1.
+        :param modesty: The level of modesty of the speaker. Can be a value between 0 and 1 or a value for modesty between 0 and 1 (default=0.8).
         :return: A 4x3 matrix where each row represents the distribution over messages for the specified level of expertise or a 1x3 matrix if a level of expertise is specified.
 
         >>> model = mRSA(alpha=1.25, speaker_optimality=10)
