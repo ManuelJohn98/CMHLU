@@ -96,6 +96,8 @@ def plotter(func: Callable) -> Callable:
             ax.set_xticklabels(model.utterances)
             ax.set_ylabel("Probability inferred by " + r"$S_1$")
             ax.legend(model.levels_of_expertise)
+            ax.grid(axis='y', zorder=0)
+            plt.savefig("S1_complete.png")
             plt.show()
         # literal listener - complete distribution
         elif func.__name__=='L0' and len(args) == 0 and len(kwargs) == 0:
@@ -110,6 +112,8 @@ def plotter(func: Callable) -> Callable:
             ax.set_xticklabels(model.levels_of_expertise)
             ax.set_ylabel("Probability inferred by " + r"$L_0$")
             ax.legend(model.utterances)
+            ax.grid(axis='y', zorder=0)
+            plt.savefig("L0_complete.png")
             plt.show()
         # literal listener - single utterance
         elif func.__name__=='L0':
@@ -122,6 +126,8 @@ def plotter(func: Callable) -> Callable:
             plt.bar(model.levels_of_expertise, result)
             plt.xlabel("Levels of expertise")
             plt.ylabel("Probability inferred by " + r"$L_0$")
+            plt.grid(axis='y', zorder=0)
+            plt.savefig("L0_" + utterance + ".png")
             plt.show()
         # level 1 speaker - single utterance
         elif func.__name__=='S1':
@@ -139,6 +145,8 @@ def plotter(func: Callable) -> Callable:
             plt.xlabel("Utterances")
             plt.ylabel("Probability inferred by " + r"$S_1$")
             plt.bar(model.utterances, result)
+            plt.grid(axis='y', zorder=0)
+            plt.savefig("S1_" + level_of_expertise + ".png")
             plt.show()
             # pragmatic listener
         elif func.__name__=='L1':
@@ -154,6 +162,8 @@ def plotter(func: Callable) -> Callable:
                 plt.xlabel("Weights for modesty")
                 plt.ylabel("Probability inferred by " + r"$L_1$")
                 plt.bar(model.weight_bins, result, width=1/len(result))
+                plt.grid(axis='y', zorder=0)
+                plt.savefig("L1_" + true_state + "_" + utterance + ".png")
                 plt.show()
             # infer state
             elif len(args) == 2 or len(kwargs) == 1 and "known_modesty" in kwargs:
@@ -167,6 +177,8 @@ def plotter(func: Callable) -> Callable:
                 plt.xlabel("Levels of expertise")
                 plt.ylabel("Probability inferred by " + r"$L_1$")
                 plt.bar(model.levels_of_expertise, result)
+                plt.grid(axis='y', zorder=0)
+                plt.savefig("L1_" + utterance + "_" + str(round(known_modesty, 2)) + ".png")
                 plt.show()
             # infer both
             elif len(args) == 1 and len(kwargs) == 0:
@@ -182,6 +194,8 @@ def plotter(func: Callable) -> Callable:
                 ax.set_xticklabels(map(partial(round, ndigits=2), model.weight_bins))
                 ax.set_ylabel("Probability inferred by " + r"$L_1$")
                 ax.legend(model.levels_of_expertise)
+                ax.grid(axis='y', zorder=0)
+                plt.savefig("L1_" + utterance + "_complete.png")
                 plt.show()
         return result
     return wrapper
@@ -191,11 +205,13 @@ if __name__=='__main__':
     from mRSA import mRSA
     model = mRSA(alpha=1.25, speaker_optimality=10, plotting=True)
     print(model.L0())
-    print(model.L0("terrible"))
+    print(model.L0("bad"))
     print(model.S1())
     print(model.S1(modesty=0.6))
+    print(model.S1(modesty=0.15))
     print(model.S1("expert", modesty=0.9))
+    print(model.S1("intermediate", modesty=0.9))
     print(model.L1("bad"))
-    print(model.L1("terrible", known_modesty=0.9))
-    print(model.L1("terrible", true_state="expert"))
-    print(model.L1("terrible", true_state="expert", known_modesty=0.6))
+    print(model.L1("terrible", known_modesty=0.8))
+    print(model.L1("good", true_state="expert"))
+    print(model.L1("bad", true_state="expert", known_modesty=0.6))
